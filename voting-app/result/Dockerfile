@@ -1,9 +1,8 @@
-FROM node:10-slim
+FROM node:16-slim
 
-# add curl for healthcheck
+# Add curl for healthcheck
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-    curl \
+    && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Add Tini for proper init of signals
@@ -13,25 +12,33 @@ RUN chmod +x /tini
 
 WORKDIR /app
 
+# Install nodemon globally
 RUN npm install -g nodemon
 
-# Create a user and set permissions
+# Create a user
 RUN useradd -u 1001 -r -g 0 -d /app -s /sbin/nologin \
-    -c "Default Application User" default && \
-    chown -R 1001:0 /app && \
-    chmod -R g+rw /app
+    -c "Default Application User" default
 
+# Copy package.json and package-lock.json if exists
+COPY src/package*.json ./
+
+# Install app dependencies
+RUN npm install --production && npm cache clean --force
+
+# Change ownership of /app to the default user before switching
+RUN chown -R 1001:0 /app
+
+# Switch to the non-root user
 USER 1001
 
-# Ensure the correct permissions on the copied files
-COPY --chown=1001:0 src/package*.json ./
+# Copy app source code
 COPY --chown=1001:0 src/. .
 
-RUN npm ci \
-    && npm cache clean --force
-
+# Set environment variable
 ENV PORT 8080
 
+# Expose the application port
 EXPOSE 8080
 
+# Run the application
 CMD ["/tini", "--", "node", "server.js"]
