@@ -10,10 +10,10 @@ RUN apt-get update \
 # Set the application directory
 WORKDIR /app
 
-# Set the Python path for installed packages
+# Add PATH for local installs
 ENV PATH="/app/.local/bin/:${PATH}"
 
-# Create a non-root user and set permissions
+# Create a user and set permissions
 RUN useradd -u 1001 -r -g 0 -d /app -s /sbin/nologin \
     -c "Default Application User" default && \
     chown -R 1001:0 /app && \
@@ -21,18 +21,15 @@ RUN useradd -u 1001 -r -g 0 -d /app -s /sbin/nologin \
 
 USER 1001
 
-# Install our requirements.txt
+# Install requirements
 COPY src/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Copy our code from the current folder to /app inside the container
+# Copy application code
 COPY src/. .
 
-# Make port 8080 available for links and/or publish
+# Make port 8080 available
 EXPOSE 8080
 
-# Add a health check to verify the application is running
-HEALTHCHECK --interval=30s --timeout=10s CMD curl -f http://localhost:8080/ || exit 1
-
-# Define our command to be run when launching the container
+# Set the command to run when launching the container
 CMD ["gunicorn", "app:app", "-b", "0.0.0.0:8080", "--log-file", "-", "--access-logfile", "-", "--workers", "4", "--keep-alive", "0"]
